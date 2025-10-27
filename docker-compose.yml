@@ -1,0 +1,63 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8
+    container_name: numer_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: lovenumer
+      MYSQL_DATABASE: numer
+      MYSQL_USER: user
+      MYSQL_PASSWORD: numerjra
+    ports:
+      - "3306:3306"               # ถ้าชนพอร์ตกับ MySQL บนเครื่อง ให้เปลี่ยนเป็น "3307:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./mysql_init:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin-1
+    restart: always
+    depends_on: [mysql]
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: numer-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: "5000"
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - mysql
+
+  web:
+    build:
+      context: ./numer
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://localhost:5000"
+    container_name: numer-web
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: "http://localhost:5000"
+    volumes:
+      - ./numer:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev", "--", "--host"]
+    depends_on:
+      - backend
